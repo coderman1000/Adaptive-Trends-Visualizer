@@ -15,7 +15,7 @@ const DataForm = ({ onSubmit }) => {
 
     useEffect(() => {
         if (selectedDb) {
-            axios.get(`http://localhost:5000/api/tables/` + selectedDb)
+            axios.get(`http://127.0.0.1:5000/api/tables/` + selectedDb)
                 .then(response => {
                     setTables(response.data);
                 })
@@ -69,45 +69,46 @@ const DataForm = ({ onSubmit }) => {
     };
 
     return (
-        <Card sx={{ marginBottom: 4, background: '#f5f0ff', boxShadow: 3 }} color="primary" >
+        <Card sx={{ marginBottom: 4, background: '#1171BA', color: '#fff', boxShadow: 3, minWidth: 1100 }}>
             <CardContent>
                 <Typography variant="h6" gutterBottom>
                     Data Selector
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                     <FormControl fullWidth sx={{ flex: 1, minWidth: 150 }} error={!!error}>
-                        <InputLabel>DB Name</InputLabel>
-                        <Select value={selectedDb} onChange={handleDbChange}>
+                        <InputLabel sx={{ color: '#fff' }}>DB Name</InputLabel>
+                        <Select value={selectedDb} onChange={handleDbChange} sx={{ color: '#fff', '.MuiSelect-icon': { color: '#fff' } }}>
                             {databases.map(db => (
                                 <MenuItem key={db} value={db}>{db}</MenuItem>
                             ))}
                         </Select>
-                        {!!error && !selectedDb && <FormHelperText>{error}</FormHelperText>}
+                        {!!error && !selectedDb && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </FormControl>
 
                     <FormControl fullWidth sx={{ flex: 1, minWidth: 150 }} disabled={!selectedDb} error={!!error}>
-                        <InputLabel>Table Name</InputLabel>
-                        <Select value={selectedTable} onChange={handleTableChange}>
+                        <InputLabel sx={{ color: '#fff' }}>Table Name</InputLabel>
+                        <Select value={selectedTable} onChange={handleTableChange} sx={{ color: '#fff', '.MuiSelect-icon': { color: '#fff' } }}>
                             {tables.map(table => (
                                 <MenuItem key={table.tableName} value={table.tableName}>{table.tableName}</MenuItem>
                             ))}
                         </Select>
-                        {!!error && !selectedTable && <FormHelperText>{error}</FormHelperText>}
+                        {!!error && !selectedTable && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </FormControl>
 
                     <FormControl fullWidth sx={{ flex: 1, minWidth: 150 }} disabled={!selectedTable} error={!!error}>
-                        <InputLabel>Table Fields</InputLabel>
+                        <InputLabel sx={{ color: '#fff' }}>Table Fields</InputLabel>
                         <Select
                             multiple
                             value={selectedFields}
                             onChange={(event) => setSelectedFields(event.target.value)}
                             renderValue={(selected) => selected.join(', ')}
+                            sx={{ color: '#fff', '.MuiSelect-icon': { color: '#fff' } }}
                         >
                             {fields.map(field => (
                                 <MenuItem key={field} value={field}>{field}</MenuItem>
                             ))}
                         </Select>
-                        {!!error && !selectedFields.length && <FormHelperText>{error}</FormHelperText>}
+                        {!!error && !selectedFields.length && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </FormControl>
 
                     <TextField
@@ -115,11 +116,12 @@ const DataForm = ({ onSubmit }) => {
                         sx={{ flex: 1, minWidth: 150 }}
                         label="Start Date"
                         type="date"
-                        InputLabelProps={{ shrink: true }}
+                        InputLabelProps={{ shrink: true, style: { color: '#fff' } }}
                         value={startDate}
                         onChange={(event) => setStartDate(event.target.value)}
                         error={!!error && !startDate}
                         helperText={error && !startDate ? error : ''}
+                        InputProps={{ style: { color: '#fff' } }}
                     />
 
                     <TextField
@@ -127,15 +129,16 @@ const DataForm = ({ onSubmit }) => {
                         sx={{ flex: 1, minWidth: 150 }}
                         label="End Date"
                         type="date"
-                        InputLabelProps={{ shrink: true }}
+                        InputLabelProps={{ shrink: true, style: { color: '#fff' } }}
                         value={endDate}
                         onChange={(event) => setEndDate(event.target.value)}
                         error={!!error && !endDate}
                         helperText={error && !endDate ? error : ''}
+                        InputProps={{ style: { color: '#fff' } }}
                     />
 
-                    <Button variant="contained" color="primary" onClick={handleDraw} sx={{ flexShrink: 0, minWidth: 150 }}>
-                        Draw
+                    <Button variant="contained" color="success" onClick={handleDraw} sx={{ flexShrink: 0, fontWeight: 'bold' }}>
+                        Draw Chart
                     </Button>
                 </Box>
             </CardContent>
