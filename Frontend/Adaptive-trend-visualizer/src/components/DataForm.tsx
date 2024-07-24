@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typography, FormHelperText, Card, CardContent } from '@mui/material';
 import axios from 'axios';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 const DataForm = ({ onSubmit }) => {
     const [databases, setDatabases] = useState(['ABC', 'db2']);
@@ -9,13 +11,13 @@ const DataForm = ({ onSubmit }) => {
     const [selectedTable, setSelectedTable] = useState('');
     const [fields, setFields] = useState([]);
     const [selectedFields, setSelectedFields] = useState([]);
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
     const [error, setError] = useState('');
 
     useEffect(() => {
         if (selectedDb) {
-            axios.get(`http://127.0.0.1:5000/api/tables/` + selectedDb)
+            axios.get(`http://127.0.0.1:5000/api/tables/${selectedDb}`)
                 .then(response => {
                     setTables(response.data);
                 })
@@ -111,31 +113,35 @@ const DataForm = ({ onSubmit }) => {
                         {!!error && !selectedFields.length && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </FormControl>
 
-                    <TextField
-                        fullWidth
-                        sx={{ flex: 1, minWidth: 150 }}
-                        label="Start Date"
-                        type="date"
-                        InputLabelProps={{ shrink: true, style: { color: '#fff' } }}
-                        value={startDate}
-                        onChange={(event) => setStartDate(event.target.value)}
-                        error={!!error && !startDate}
-                        helperText={error && !startDate ? error : ''}
-                        InputProps={{ style: { color: '#fff' } }}
-                    />
+                    <Box sx={{ flex: 1, minWidth: 150 }}>
+                        <Typography sx={{ color: '#fff' }}>Start Date & Time</Typography>
+                        <DatePicker
+                            selected={startDate}
+                            onChange={date => setStartDate(date)}
+                            showTimeSelect
+                            dateFormat="Pp"
+                            timeFormat="HH:mm:ss"
+                            timeIntervals={15}
+                            customInput={<TextField fullWidth />}
+                            style={{ color: '#fff' }}
+                        />
+                        {!!error && !startDate && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
+                    </Box>
 
-                    <TextField
-                        fullWidth
-                        sx={{ flex: 1, minWidth: 150 }}
-                        label="End Date"
-                        type="date"
-                        InputLabelProps={{ shrink: true, style: { color: '#fff' } }}
-                        value={endDate}
-                        onChange={(event) => setEndDate(event.target.value)}
-                        error={!!error && !endDate}
-                        helperText={error && !endDate ? error : ''}
-                        InputProps={{ style: { color: '#fff' } }}
-                    />
+                    <Box sx={{ flex: 1, minWidth: 150 }}>
+                        <Typography sx={{ color: '#fff' }}>End Date & Time</Typography>
+                        <DatePicker
+                            selected={endDate}
+                            onChange={date => setEndDate(date)}
+                            showTimeSelect
+                            dateFormat="Pp"
+                            timeFormat="HH:mm:ss"
+                            timeIntervals={15}
+                            customInput={<TextField fullWidth />}
+                            style={{ color: '#fff' }}
+                        />
+                        {!!error && !endDate && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
+                    </Box>
 
                     <Button variant="contained" color="success" onClick={handleDraw} sx={{ flexShrink: 0, fontWeight: 'bold' }}>
                         Draw Chart
