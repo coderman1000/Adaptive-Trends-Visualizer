@@ -8,7 +8,7 @@ import ParentComponent from "@/components/ParentComponent";
 function Hero() {
   return (
     <div className="relative min-h-screen w-full">
-      <header className="grid !min-h-[20rem] bg-gray-900 px-8">
+      <header className="grid !min-h-[10rem] bg-gray-900 px-8">
         <Image
           width={354}
           height={55}
@@ -16,10 +16,10 @@ function Hero() {
           alt="Office"
           className="col-span-1 m-5  "
         />
-        <div className="container mx-auto mt-29 grid h-full w-full grid-cols-1 place-items-center lg:mt-14 lg:grid-cols-2">
+        <div className="container mx-auto mt-19 grid h-full w-full grid-cols-1 place-items-center lg:mt-5 lg:grid-cols-2">
 
           <div className="col-span-1">
-            <Typography variant="h1" color="white" className="mb-14">
+            <Typography variant="h1" color="white" className="mb-10">
               Adaptive Trend Visualizer
             </Typography>
 
