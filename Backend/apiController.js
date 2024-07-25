@@ -32,7 +32,6 @@ exports.getTableAndColumnNames = async (req, res) => {
     common.handleError(res, error);
   }
 };
-
 exports.getColumnValuesByTimeInterval = async (req, res) => {
   try {
     const { dbName, collectionName, columns, startTime, endTime } = req.body;
@@ -40,14 +39,28 @@ exports.getColumnValuesByTimeInterval = async (req, res) => {
 
     // Convert startTime and endTime to ISO string format
     const startTimeStr = new Date(startTime).toISOString();
-    const endTimeStr = new Date(endTime).toISOString();
+    const endTimeStr = endTime ? new Date(endTime).toISOString() : null;
 
-    const query = {
-      InsertedDateTime: {
-        $gte: startTimeStr,
-        $lte: endTimeStr,
-      },
-    };
+    // Build the query object based on the presence of endTime
+    let query;
+    if (endTimeStr) {
+      // Case 1: endTime is provided
+      query = {
+        InsertedDateTime: {
+          $gte: startTimeStr,
+          $lte: endTimeStr,
+        },
+      };
+    } else {
+      // Case 2: endTime is not provided
+      query = {
+        InsertedDateTime: {
+          $gte: startTimeStr,
+        },
+      };
+    }
+
+    // Create projection object
     const projection = columns.reduce(
       (proj, col) => ({ ...proj, [col]: 1 }),
       {}
@@ -63,6 +76,7 @@ exports.getColumnValuesByTimeInterval = async (req, res) => {
     const rawResult = await db.collection(collectionName).find(query).toArray();
     console.log("Raw Result:", rawResult);
 
+    // Apply projection and find documents
     const result = await db
       .collection(collectionName)
       .find(query)
