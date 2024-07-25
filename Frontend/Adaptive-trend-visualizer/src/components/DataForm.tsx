@@ -50,6 +50,12 @@ const DataForm = ({ onSubmit }) => {
         return '';
     };
 
+    const addHours = (date, hours) => {
+        const newDate = new Date(date);
+        newDate.setHours(newDate.getHours() + hours);
+        return newDate;
+    };
+
     const handleDraw = () => {
         const errorMessage = validateFields();
         if (errorMessage) {
@@ -63,12 +69,21 @@ const DataForm = ({ onSubmit }) => {
             dbName: selectedDb,
             collectionName: selectedTable,
             columns: selectedFields,
-            startTime: new Date(startDate).toISOString(),
-            endTime: new Date(endDate).toISOString()
+            startTime: addHours(startDate, 5).toISOString(), // Adding 5 hours to start date
+            endTime: addHours(endDate, 5).toISOString()      // Adding 5 hours to end date
         };
 
         onSubmit(requestBody);
     };
+
+    const CustomInput = ({ value, onClick }) => (
+        <TextField
+            fullWidth
+            value={value}
+            onClick={onClick}
+            InputProps={{ style: { color: '#FFFFFF' } }} // Custom font color for selected date/time
+        />
+    );
 
     return (
         <Card sx={{ marginBottom: 4, background: '#1171BA', color: '#fff', boxShadow: 3, minWidth: 1100 }}>
@@ -122,8 +137,7 @@ const DataForm = ({ onSubmit }) => {
                             dateFormat="Pp"
                             timeFormat="HH:mm:ss"
                             timeIntervals={15}
-                            customInput={<TextField fullWidth />}
-                            style={{ color: '#fff' }}
+                            customInput={<CustomInput />}
                         />
                         {!!error && !startDate && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </Box>
@@ -137,8 +151,7 @@ const DataForm = ({ onSubmit }) => {
                             dateFormat="Pp"
                             timeFormat="HH:mm:ss"
                             timeIntervals={15}
-                            customInput={<TextField fullWidth />}
-                            style={{ color: '#fff' }}
+                            customInput={<CustomInput />}
                         />
                         {!!error && !endDate && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </Box>
