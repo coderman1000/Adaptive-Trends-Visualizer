@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typography, FormHelperText, Card, CardContent } from '@mui/material';
+import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typography, FormHelperText, Card, CardContent, Switch, FormControlLabel } from '@mui/material';
 import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
-const DataForm = ({ onSubmit }) => {
+const DataForm = ({ onSubmit, setRealTime }) => {
     const [databases, setDatabases] = useState(['ABC', 'db2']);
     const [selectedDb, setSelectedDb] = useState('');
     const [tables, setTables] = useState([]);
@@ -14,6 +14,7 @@ const DataForm = ({ onSubmit }) => {
     const [startDate, setStartDate] = useState(null);
     const [endDate, setEndDate] = useState(null);
     const [error, setError] = useState('');
+    const [realTime, setLocalRealTime] = useState(false);
 
     useEffect(() => {
         if (selectedDb) {
@@ -45,8 +46,8 @@ const DataForm = ({ onSubmit }) => {
         if (!selectedDb) return 'Database name is required';
         if (!selectedTable) return 'Table name is required';
         if (!selectedFields.length) return 'At least one table field must be selected';
-        if (!startDate) return 'Start date is required';
-        if (!endDate) return 'End date is required';
+        if (!realTime && !startDate) return 'Start date is required';
+        if (!realTime && !endDate) return 'End date is required';
         return '';
     };
 
@@ -69,11 +70,16 @@ const DataForm = ({ onSubmit }) => {
             dbName: selectedDb,
             collectionName: selectedTable,
             columns: selectedFields,
-            startTime: addHours(startDate, 5).toISOString(), // Adding 5 hours to start date
-            endTime: addHours(endDate, 5).toISOString()      // Adding 5 hours to end date
+            startTime: realTime ? new Date().toISOString() : addHours(startDate, 5).toISOString(),
+            endTime: realTime ? '' : addHours(endDate, 5).toISOString()
         };
 
         onSubmit(requestBody);
+    };
+
+    const handleRealTimeChange = (event) => {
+        setLocalRealTime(event.target.checked);
+        setRealTime(event.target.checked);
     };
 
     const CustomInput = ({ value, onClick }) => (
@@ -128,6 +134,17 @@ const DataForm = ({ onSubmit }) => {
                         {!!error && !selectedFields.length && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </FormControl>
 
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={realTime}
+                                onChange={handleRealTimeChange}
+                                color="primary"
+                            />
+                        }
+                        label="Real Time"
+                        sx={{ color: '#fff' }}
+                    />
                     <Box sx={{ flex: 1, minWidth: 150 }}>
                         <Typography sx={{ color: '#fff' }}>Start Date & Time</Typography>
                         <DatePicker
@@ -138,8 +155,9 @@ const DataForm = ({ onSubmit }) => {
                             timeFormat="HH:mm:ss"
                             timeIntervals={15}
                             customInput={<CustomInput />}
+                            disabled={realTime}
                         />
-                        {!!error && !startDate && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
+                        {!!error && !startDate && !realTime && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </Box>
 
                     <Box sx={{ flex: 1, minWidth: 150 }}>
@@ -152,11 +170,18 @@ const DataForm = ({ onSubmit }) => {
                             timeFormat="HH:mm:ss"
                             timeIntervals={15}
                             customInput={<CustomInput />}
+                            disabled={realTime}
                         />
-                        {!!error && !endDate && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
+                        {!!error && !endDate && !realTime && <FormHelperText sx={{ color: '#f44336' }}>{error}</FormHelperText>}
                     </Box>
 
-                    <Button variant="contained" color="success" onClick={handleDraw} sx={{ flexShrink: 0, fontWeight: 'bold' }}>
+                    <Button
+                        variant="contained"
+                        color="success"
+                        onClick={handleDraw}
+                        sx={{ flexShrink: 0, fontWeight: 'bold' }}
+                        disabled={realTime}
+                    >
                         Draw Chart
                     </Button>
                 </Box>
