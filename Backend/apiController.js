@@ -9,111 +9,97 @@ const xlsx = require("xlsx");
  */
 exports.initialize = async (dbName, excelFilePath) => {
   try {
-    // Load the Excel file
+    // Read the Excel file
     const workbook = xlsx.readFile(excelFilePath);
 
-    // Use the specified database
+    // Get all sheet names
+    const sheetNames = workbook.SheetNames;
+
+    // Connect to the specified database
     const db = mongoose.connection.useDb(dbName);
 
-    // Iterate over each sheet in the workbook
-    for (const sheetName of workbook.SheetNames) {
-      const sheet = workbook.Sheets[sheetName];
-      const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+    // Iterate over each sheet
+    for (const sheetName of sheetNames) {
+      // Parse the sheet
+      const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-      if (rows.length < 2) {
-        console.error(
-          `Sheet "${sheetName}" must have at least two rows (header and data).`
+      // Check for required columns in the Excel sheet
+      if (
+        !sheetData.length ||
+        !("ColumnName" in sheetData[0]) ||
+        !("Type" in sheetData[0]) ||
+        !("DefaultValue" in sheetData[0])
+      ) {
+        console.warn(
+          `Sheet "${sheetName}" is missing required columns (ColumnName, Type, DefaultValue). Skipping...`
         );
         continue;
       }
 
-      const [headerRow, ...dataRows] = rows;
-
-      // Extract column definitions from the header row
+      // Construct the schema for the MongoDB collection
       const schemaDefinition = {};
-      for (const column of headerRow) {
-        const columnParts = column.split(",");
-        const [columnName, type, defaultValue] = columnParts.map((part) =>
-          part.trim()
-        );
+      sheetData.forEach((row) => {
+        const columnName = row["ColumnName"];
+        const type = mapTypeToMongoose(row["Type"]);
+        const defaultValue = row["DefaultValue"];
 
-        if (!columnName || !type) {
-          console.error(
-            `Invalid column definition in sheet "${sheetName}":`,
-            column
+        if (!type) {
+          console.warn(
+            `Invalid type "${row["Type"]}" for column "${columnName}". Skipping this column.`
           );
-          continue;
-        }
-
-        // Map Excel type to MongoDB field type
-        const mongooseType = mapExcelTypeToMongooseType(type);
-
-        if (!mongooseType) {
-          console.error(
-            `Unsupported type "${type}" for column "${columnName}" in sheet "${sheetName}".`
-          );
-          continue;
+          return;
         }
 
         schemaDefinition[columnName] = {
-          type: mongooseType,
-          default: defaultValue || undefined,
+          type: type,
+          default: parseDefaultValue(type, defaultValue),
         };
+      });
+
+      // If no valid columns are found, skip creating the collection
+      if (Object.keys(schemaDefinition).length === 0) {
+        console.warn(
+          `No valid columns found in sheet "${sheetName}". Skipping collection creation.`
+        );
+        continue;
       }
 
-      // Create schema and model
+      // Create a Mongoose schema and model
       const schema = new mongoose.Schema(schemaDefinition, {
-        timestamps: { createdAt: "InsertedDateTime", updatedAt: false },
+        timestamps: false,
       });
+      await db.model(sheetName, schema); // Register the model
 
-      const model = db.model(sheetName, schema);
-
-      // Insert data rows into the collection
-      const documents = dataRows.map((row) => {
-        const document = {};
-        headerRow.forEach((header, index) => {
-          const columnName = header.split(",")[0].trim();
-          document[columnName] =
-            row[index] !== undefined ? row[index] : undefined;
-        });
-        return document;
-      });
-
-      await model.insertMany(documents);
       console.log(
-        `Created table "${sheetName}" with ${documents.length} rows.`
+        `Created collection "${sheetName}" with schema:`,
+        schemaDefinition
       );
     }
+
+    console.log("All sheets processed successfully.");
   } catch (error) {
     console.error("Error initializing tables:", error);
-    throw error;
   }
 };
 
-/**
- * Map Excel data type to Mongoose data type
- * @param {string} excelType - Type from Excel
- * @returns {Function|undefined} Mongoose type
- */
-const mapExcelTypeToMongooseType = (excelType) => {
-  switch (excelType.toLowerCase()) {
+// Helper function to map Excel data types to Mongoose types
+function mapTypeToMongoose(type) {
+  switch (type.toLowerCase()) {
     case "bit":
       return Boolean;
     case "byte":
       return Number;
     case "uint16":
     case "int16":
-    case "int32":
-    case "uint32":
+    case "float":
+    case "double":
       return Number;
-    case "string":
+    case "char":
       return String;
-    case "date":
-      return Date;
     default:
-      return undefined;
+      return null; // Invalid type
   }
-};
+}
 
 exports.getTableAndColumnNames = async (req, res) => {
   try {
