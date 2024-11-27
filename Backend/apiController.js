@@ -101,6 +101,20 @@ function mapTypeToMongoose(type) {
   }
 }
 
+// Helper function to parse default values based on type
+function parseDefaultValue(type, value) {
+  switch (type) {
+    case Boolean:
+      return value === "true" || value === "1";
+    case Number:
+      return parseFloat(value);
+    case String:
+      return value.toString();
+    default:
+      return null; // Invalid type
+  }
+}
+
 exports.getTableAndColumnNames = async (req, res) => {
   try {
     const dbName = req.params.dbName;
