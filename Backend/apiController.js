@@ -2,6 +2,94 @@ const mongoose = require("mongoose");
 const common = require("./common");
 const xlsx = require("xlsx");
 
+/**
+ * Initialize tables based on Excel file
+ * @param {string} dbName - Database name
+ * @param {string} excelFilePath - Path to the Excel file
+ */
+exports.initialize = async (dbName, excelFilePath) => {
+  try {
+    // Load the Excel file
+    const workbook = xlsx.readFile(excelFilePath);
+
+    // Use the specified database
+    const db = mongoose.connection.useDb(dbName);
+
+    // Iterate over each sheet in the workbook
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+
+      if (rows.length < 2) {
+        console.error(
+          `Sheet "${sheetName}" must have at least two rows (header and data).`
+        );
+        continue;
+      }
+
+      const [headerRow, ...dataRows] = rows;
+
+      // Extract column definitions from the header row
+      const schemaDefinition = {};
+      for (const column of headerRow) {
+        const columnParts = column.split(",");
+        const [columnName, type, defaultValue] = columnParts.map((part) =>
+          part.trim()
+        );
+
+        if (!columnName || !type) {
+          console.error(
+            `Invalid column definition in sheet "${sheetName}":`,
+            column
+          );
+          continue;
+        }
+
+        // Map Excel type to MongoDB field type
+        const mongooseType = mapExcelTypeToMongooseType(type);
+
+        if (!mongooseType) {
+          console.error(
+            `Unsupported type "${type}" for column "${columnName}" in sheet "${sheetName}".`
+          );
+          continue;
+        }
+
+        schemaDefinition[columnName] = {
+          type: mongooseType,
+          default: defaultValue || undefined,
+        };
+      }
+
+      // Create schema and model
+      const schema = new mongoose.Schema(schemaDefinition, {
+        timestamps: { createdAt: "InsertedDateTime", updatedAt: false },
+      });
+
+      const model = db.model(sheetName, schema);
+
+      // Insert data rows into the collection
+      const documents = dataRows.map((row) => {
+        const document = {};
+        headerRow.forEach((header, index) => {
+          const columnName = header.split(",")[0].trim();
+          document[columnName] =
+            row[index] !== undefined ? row[index] : undefined;
+        });
+        return document;
+      });
+
+      await model.insertMany(documents);
+      console.log(
+        `Created table "${sheetName}" with ${documents.length} rows.`
+      );
+    }
+  } catch (error) {
+    console.error("Error initializing tables:", error);
+    throw error;
+  }
+};
+
 exports.getTableAndColumnNames = async (req, res) => {
   try {
     const dbName = req.params.dbName;
