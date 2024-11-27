@@ -90,6 +90,31 @@ exports.initialize = async (dbName, excelFilePath) => {
   }
 };
 
+/**
+ * Map Excel data type to Mongoose data type
+ * @param {string} excelType - Type from Excel
+ * @returns {Function|undefined} Mongoose type
+ */
+const mapExcelTypeToMongooseType = (excelType) => {
+  switch (excelType.toLowerCase()) {
+    case "bit":
+      return Boolean;
+    case "byte":
+      return Number;
+    case "uint16":
+    case "int16":
+    case "int32":
+    case "uint32":
+      return Number;
+    case "string":
+      return String;
+    case "date":
+      return Date;
+    default:
+      return undefined;
+  }
+};
+
 exports.getTableAndColumnNames = async (req, res) => {
   try {
     const dbName = req.params.dbName;
