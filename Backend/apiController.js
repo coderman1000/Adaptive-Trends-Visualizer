@@ -9,34 +9,26 @@ const xlsx = require("xlsx");
  */
 exports.initialize = async (dbName, excelFilePath) => {
   try {
-    // Read the Excel file
     const workbook = xlsx.readFile(excelFilePath);
-
-    // Get all sheet names
     const sheetNames = workbook.SheetNames;
-
-    // Connect to the specified database
     const db = mongoose.connection.useDb(dbName);
 
-    // Iterate over each sheet
     for (const sheetName of sheetNames) {
-      // Parse the sheet
       const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-      // Check for required columns in the Excel sheet
+      // Validate that required columns exist
       if (
         !sheetData.length ||
         !("ColumnName" in sheetData[0]) ||
-        !("Type" in sheetData[0]) ||
-        !("DefaultValue" in sheetData[0])
+        !("Type" in sheetData[0])
       ) {
         console.warn(
-          `Sheet "${sheetName}" is missing required columns (ColumnName, Type, DefaultValue). Skipping...`
+          `Sheet "${sheetName}" is missing required columns (ColumnName, Type). Skipping...`
         );
         continue;
       }
 
-      // Construct the schema for the MongoDB collection
+      // Construct the schema
       const schemaDefinition = {};
       sheetData.forEach((row) => {
         const columnName = row["ColumnName"];
@@ -45,7 +37,7 @@ exports.initialize = async (dbName, excelFilePath) => {
 
         if (!type) {
           console.warn(
-            `Invalid type "${row["Type"]}" for column "${columnName}". Skipping this column.`
+            `Invalid type "${row["Type"]}" for column "${columnName}". Skipping column.`
           );
           return;
         }
@@ -56,7 +48,6 @@ exports.initialize = async (dbName, excelFilePath) => {
         };
       });
 
-      // If no valid columns are found, skip creating the collection
       if (Object.keys(schemaDefinition).length === 0) {
         console.warn(
           `No valid columns found in sheet "${sheetName}". Skipping collection creation.`
@@ -64,12 +55,15 @@ exports.initialize = async (dbName, excelFilePath) => {
         continue;
       }
 
-      // Create a Mongoose schema and model
+      // Define schema and ensure model registration
       const schema = new mongoose.Schema(schemaDefinition, {
+        strict: true,
         timestamps: false,
       });
-      await db.model(sheetName, schema); // Register the model
+      const model = db.model(sheetName, schema); // Register model
 
+      // Ensure a collection is created by inserting a sample document
+      await model.create({});
       console.log(
         `Created collection "${sheetName}" with schema:`,
         schemaDefinition
@@ -94,10 +88,10 @@ function mapTypeToMongoose(type) {
     case "float":
     case "double":
       return Number;
-    case "char":
+    case "string":
       return String;
     default:
-      return null; // Invalid type
+      return null;
   }
 }
 
@@ -107,11 +101,11 @@ function parseDefaultValue(type, value) {
     case Boolean:
       return value === "true" || value === "1";
     case Number:
-      return parseFloat(value);
+      return Number(value);
     case String:
       return value.toString();
     default:
-      return null; // Invalid type
+      return null;
   }
 }
 
