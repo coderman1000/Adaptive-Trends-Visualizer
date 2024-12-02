@@ -98,6 +98,66 @@ exports.initialize = async (dbName, excelFilePath) => {
   }
 };
 
+exports.saveRawData = async (tableName, SID, hexString) => {
+  try {
+    // Validate inputs
+    if (!tableName || typeof tableName !== "string") {
+      return { success: false, message: "Invalid tableName provided." };
+    }
+    if (!Number.isInteger(SID)) {
+      return { success: false, message: "SID must be an integer." };
+    }
+    if (!hexString || typeof hexString !== "string") {
+      return { success: false, message: "hexString must be a valid string." };
+    }
+
+    // Dynamically get the model
+    const Model = mongoose.model(tableName);
+    if (!Model) {
+      return {
+        success: false,
+        message: `No model found for tableName: ${tableName}`,
+      };
+    }
+
+    // Calculate InsertedDateTime (now + 5 hours)
+    const insertedDateTime = new Date();
+    insertedDateTime.setHours(insertedDateTime.getHours() + 5);
+
+    // Create a new document
+    const newDocument = new Model({
+      SID,
+      hexString,
+      InsertedDateTime: insertedDateTime,
+    });
+
+    // Save the document to the database
+    const result = await newDocument.save();
+    return { success: true, message: "Data saved successfully.", data: result };
+  } catch (error) {
+    // Handle specific errors
+    if (error.name === "ValidationError") {
+      return {
+        success: false,
+        message: "Validation error.",
+        details: error.errors,
+      };
+    }
+    if (error.name === "MongoError") {
+      return {
+        success: false,
+        message: "Database error.",
+        details: error.message,
+      };
+    }
+    return {
+      success: false,
+      message: "An unexpected error occurred.",
+      details: error.message,
+    };
+  }
+};
+
 /**
  * Fetch table and column names
  * @param {object} req - Express request object
