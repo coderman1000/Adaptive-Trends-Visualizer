@@ -13,10 +13,19 @@ exports.initialize = async (dbName, excelFilePath) => {
     const sheetNames = workbook.SheetNames;
     const db = mongoose.connection.useDb(dbName);
 
+    // Delete all existing collections
+    const collections = await db.db.listCollections().toArray();
+    await Promise.all(
+      collections.map(async (collection) =>
+        db.db.collection(collection.name).drop()
+      )
+    );
+    console.log(`All collections in "${dbName}" deleted successfully.`);
+
     for (const sheetName of sheetNames) {
       const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-      // Validate that required columns exist
+      // Validate required columns
       if (
         !sheetData.length ||
         !("ColumnName" in sheetData[0]) ||
@@ -28,8 +37,9 @@ exports.initialize = async (dbName, excelFilePath) => {
         continue;
       }
 
-      // Construct the schema
+      // Construct schema
       const schemaDefinition = {};
+
       sheetData.forEach((row) => {
         const columnName = row["ColumnName"];
         const type = mapTypeToMongoose(row["Type"]);
@@ -48,6 +58,16 @@ exports.initialize = async (dbName, excelFilePath) => {
         };
       });
 
+      // Add the "InsertedDateTime" column explicitly with +5 hrs
+      schemaDefinition["InsertedDateTime"] = {
+        type: Date,
+        default: () => {
+          const now = new Date();
+          now.setHours(now.getHours() + 5);
+          return now;
+        },
+      };
+
       if (Object.keys(schemaDefinition).length === 0) {
         console.warn(
           `No valid columns found in sheet "${sheetName}". Skipping collection creation.`
@@ -55,14 +75,14 @@ exports.initialize = async (dbName, excelFilePath) => {
         continue;
       }
 
-      // Define schema and ensure model registration
+      // Define schema and create model
       const schema = new mongoose.Schema(schemaDefinition, {
         strict: true,
         timestamps: false,
       });
-      const model = db.model(sheetName, schema); // Register model
+      const model = db.model(sheetName, schema);
 
-      // Ensure a collection is created by inserting a sample document
+      // Insert a sample document to ensure collection is created
       await model.create({});
       console.log(
         `Created collection "${sheetName}" with schema:`,
@@ -70,45 +90,19 @@ exports.initialize = async (dbName, excelFilePath) => {
       );
     }
 
-    console.log("All sheets processed successfully.");
+    console.log("Database initialized successfully.");
+    return { success: true, message: "Database initialized successfully." };
   } catch (error) {
-    console.error("Error initializing tables:", error);
+    console.error("Error initializing database:", error);
+    return { success: false, message: "Failed to initialize database.", error };
   }
 };
 
-// Helper function to map Excel data types to Mongoose types
-function mapTypeToMongoose(type) {
-  switch (type.toLowerCase()) {
-    case "bit":
-      return Boolean;
-    case "byte":
-      return Number;
-    case "uint16":
-    case "int16":
-    case "float":
-    case "double":
-      return Number;
-    case "string":
-      return String;
-    default:
-      return null;
-  }
-}
-
-// Helper function to parse default values based on type
-function parseDefaultValue(type, value) {
-  switch (type) {
-    case Boolean:
-      return value === "true" || value === "1";
-    case Number:
-      return Number(value);
-    case String:
-      return value.toString();
-    default:
-      return null;
-  }
-}
-
+/**
+ * Fetch table and column names
+ * @param {object} req - Express request object
+ * @param {object} res - Express response object
+ */
 exports.getTableAndColumnNames = async (req, res) => {
   try {
     const dbName = req.params.dbName;
@@ -135,11 +129,22 @@ exports.getTableAndColumnNames = async (req, res) => {
       })
     );
 
-    res.json(result);
+    res.json({ success: true, data: result });
   } catch (error) {
-    common.handleError(res, error);
+    console.error("Error fetching table and column names:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch table and column names.",
+      error: error.message,
+    });
   }
 };
+
+/**
+ * Fetch column values by time interval
+ * @param {object} req - Express request object
+ * @param {object} res - Express response object
+ */
 exports.getColumnValuesByTimeInterval = async (req, res) => {
   try {
     const { dbName, collectionName, columns, startTime, endTime } = req.body;
@@ -190,10 +195,50 @@ exports.getColumnValuesByTimeInterval = async (req, res) => {
       .find(query)
       .project(projection)
       .toArray();
-    console.log("Result:", result);
 
-    res.json(result);
+    res.json({ success: true, data: result });
   } catch (error) {
-    common.handleError(res, error);
+    console.error("Error fetching column values by time interval:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch column values.",
+      error: error.message,
+    });
   }
 };
+
+/**
+ * Map Excel data types to Mongoose types
+ */
+function mapTypeToMongoose(type) {
+  switch (type.toLowerCase()) {
+    case "bit":
+      return Boolean;
+    case "byte":
+    case "uint16":
+    case "int16":
+    case "float":
+    case "double":
+      return Number;
+    case "string":
+      return String;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Parse default values based on type
+ */
+function parseDefaultValue(type, value) {
+  switch (type) {
+    case Boolean:
+      return value === "true" || value === "1";
+    case Number:
+      return Number(value);
+    case String:
+      return value.toString();
+    default:
+      return null;
+  }
+}
